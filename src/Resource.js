@@ -22,7 +22,7 @@ class Resource {
         .update({ type, id, attributes, relationships })
         .then(response => {
           runInAction(() => {
-            Object.assign(this.attributes, attributes);
+            Object.assign(this.attributes, response.data.attributes);
             Object.assign(this.relationships, this.relationships);
           });
           return response;

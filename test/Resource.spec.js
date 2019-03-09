@@ -40,26 +40,44 @@ describe('Resource', () => {
       },
     };
 
+    const returnedRecord = {
+      type: 'widgets',
+      id: '42',
+      attributes: {
+        title: 'New Title With Server-Side Update',
+      },
+    };
+
     describe('success', () => {
       beforeEach(() => {
         api.patch.mockResolvedValue({
           data: {
-            data: expectedRecord,
+            data: returnedRecord,
           },
         });
 
         runInAction(() => {
           resource.attributes.title = 'New Title';
         });
-
-        return resource.save();
       });
 
       it('sends the correct API request', () => {
+        resource.save();
+
         expect(api.patch).toHaveBeenCalledWith('widgets/42', {
           data: {
             ...expectedRecord,
             relationships: {},
+          },
+        });
+      });
+
+      it('updates the data on return', () => {
+        const ret = resource.save();
+
+        expect(Promise.resolve(ret)).resolves.toEqual({
+          data: {
+            ...returnedRecord,
           },
         });
       });
