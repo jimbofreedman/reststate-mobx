@@ -30,7 +30,9 @@ const handleError = store => error => {
 
 class ResourceStore {
   constructor({ name, httpClient }) {
+    this._name = name;
     this.client = new ResourceClient({ name, httpClient });
+    this._refreshTimeout = null;
     this._status = observable.box(STATUS_INITIAL);
     this.records = observable([]);
     this.filtered = observable([]);
@@ -154,12 +156,40 @@ class ResourceStore {
     });
   }
 
+  get hasData() {
+    return this.records.length > 0
+  }
+
+  get loaded() {
+    return this._status.get() === STATUS_SUCCESS;
+  }
+
   get loading() {
     return this._status.get() === STATUS_LOADING;
   }
 
   get error() {
     return this._status.get() === STATUS_ERROR;
+  }
+
+  get count() {
+    return this.records.length;
+  }
+
+  loadIfNeeded() {
+    if (!this._refreshTimeout) {
+      console.log(`Setting refresh ${this._name}`);
+      this._refreshTimeout = setInterval(() => {
+        console.log(`Refreshing ${this._name}`);
+        this.loadAll();
+      }, 10000);
+    }
+
+    if (!this.hasData && !this.loading) {
+      return this.loadAll();
+    }
+
+    return null;
   }
 
   all() {
