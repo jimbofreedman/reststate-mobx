@@ -41,7 +41,7 @@ class ResourceStore {
     httpClient.interceptors.request.use(
       (config) => {
         // eslint-disable-next-line no-param-reassign
-        if (this.modifiedSince) {
+        if (config.url.endsWith(this.name) && this.modifiedSince) {
           config.headers = {
             ...config.headers,
             'If-Modified-Since': this.modifiedSince,
