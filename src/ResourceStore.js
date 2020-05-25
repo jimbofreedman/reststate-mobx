@@ -1,5 +1,5 @@
 const { observable, action, runInAction } = require('mobx');
-const { ResourceClient } = require('@reststate/client');
+const ResourceClient = require('./ResourceClient');
 const Resource = require('./Resource');
 
 const STATUS_INITIAL = 'INITIAL';
@@ -8,14 +8,13 @@ const STATUS_ERROR = 'ERROR';
 const STATUS_SUCCESS = 'SUCCESS';
 
 const storeRecord = records => newRecord => {
-  const existingRecord = records.find(r => r.id === newRecord.id);
-  if (existingRecord) {
-    Object.assign(existingRecord, newRecord);
-    return existingRecord;
+  const recordIndex = records.findIndex(r => r.id === newRecord.id);
+  if (~recordIndex) {
+    records[recordIndex] = newRecord;
   } else {
     records.push(newRecord);
-    return newRecord;
   }
+  return newRecord;
 };
 
 const matches = criteria => test =>
@@ -37,8 +36,24 @@ class ResourceStore {
     this.records = observable([]);
     this.filtered = observable([]);
     this.relatedRecords = observable([]);
+    this.modifiedSince = null;
+
+    httpClient.interceptors.request.use(
+      (config) => {
+        // eslint-disable-next-line no-param-reassign
+        if (this.modifiedSince) {
+          config.headers = {
+            ...config.headers,
+            'If-Modified-Since': this.modifiedSince,
+          };
+        }
+        return config;
+      },
+      (error) => Promise.reject(error),
+    );
 
     this.loadAll = action(({ options } = {}) => {
+      const now = new Date();
       this._status.set(STATUS_LOADING);
       return this.client
         .all({ options })
@@ -51,7 +66,8 @@ class ResourceStore {
             this._status.set(STATUS_SUCCESS);
             records.forEach(storeRecord(this.records));
           });
-          return records;
+          this.modifiedSince = now;
+          return this.records;
         })
         .catch(handleError(this));
     });
@@ -174,22 +190,6 @@ class ResourceStore {
 
   get count() {
     return this.records.length;
-  }
-
-  loadIfNeeded() {
-    if (!this._refreshTimeout) {
-      console.log(`Setting refresh ${this._name}`);
-      this._refreshTimeout = setInterval(() => {
-        console.log(`Refreshing ${this._name}`);
-        this.loadAll();
-      }, 10000);
-    }
-
-    if (!this.hasData && !this.loading) {
-      return this.loadAll();
-    }
-
-    return null;
   }
 
   all() {
