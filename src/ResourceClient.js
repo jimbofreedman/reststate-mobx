@@ -42,7 +42,7 @@ class ResourceClient {
     this.api = httpClient;
   }
 
-  all({ options = {} } = {}) {
+  all({ options = {} } = {}, headers) {
     let url;
 
     if (options.url) {
@@ -51,7 +51,12 @@ class ResourceClient {
       url = `${this.name}?${getOptionsQuery(options)}`;
     }
 
-    return this.api.get(url).then(extractData).catch(extractErrorResponse);
+    return this.api
+      .get(url, { headers })
+      .then((response) => {
+        return extractData(response);
+      })
+      .catch(extractErrorResponse);
   }
 
   find({ id, options } = {}) {

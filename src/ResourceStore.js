@@ -38,26 +38,26 @@ class ResourceStore {
     this.relatedRecords = observable([]);
     this.modifiedSince = null;
 
-    httpClient.interceptors.request.use(
-      (config) => {
-        // console.log("IMS", this._name, config.url, config.url.endsWith(`${this.name}?`), this.modifiedSince);
-        // eslint-disable-next-line no-param-reassign
-        if (config.url.endsWith(`${this.name}?`) && this.modifiedSince) {
-          config.headers = {
-            ...config.headers,
-            'If-Modified-Since': this.modifiedSince,
-          };
-        }
-        return config;
-      },
-      (error) => Promise.reject(error),
-    );
+    // httpClient.interceptors.request.use(
+    //   (config) => {
+    //     console.log("IMS", name, config.url, `${name}?`, config.url === `${name}?`, this.modifiedSince);
+    //     // eslint-disable-next-line no-param-reassign
+    //     if (config.url === `${name}?` && this.modifiedSince) {
+    //       config.headers = {
+    //         ...config.headers,
+    //         'If-Modified-Since': this.modifiedSince,
+    //       };
+    //     }
+    //     return config;
+    //   },
+    //   (error) => Promise.reject(error),
+    // );
 
     this.loadAll = action(({ options } = {}) => {
       const now = new Date();
       this._status.set(STATUS_LOADING);
       return this.client
-        .all({ options })
+        .all({ options }, this.modifiedSince !== null ? {'If-Modified-Since': this.modifiedSince.toISOString()} : undefined)
         .then(response => {
           const records = response.data.map(
             record =>
@@ -65,9 +65,10 @@ class ResourceStore {
           );
           runInAction(() => {
             this._status.set(STATUS_SUCCESS);
+            this.modifiedSince = now;
+            console.log("Modified records:", records.length)
             records.forEach(storeRecord(this.records));
           });
-          this.modifiedSince = now;
           return this.records;
         })
         .catch(handleError(this));
